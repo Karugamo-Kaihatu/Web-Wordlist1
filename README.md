@@ -1,1 +1,1 @@
-this is my friends word list.
+this is my friend word list.
