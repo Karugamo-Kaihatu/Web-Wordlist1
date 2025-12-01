@@ -3,29 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Word List</title>
+    <title>My Word List (Page Included)</title>
     <style>
-        /* 装飾は最低限 (Minimal Design) */
+        /* デザイン設定 */
         body {
-            font-family: sans-serif;
+            font-family: "Helvetica Neue", Arial, sans-serif;
             max-width: 600px;
             margin: 0 auto;
             padding: 20px;
             background-color: #f9f9f9;
+            color: #333;
         }
         h1 {
             text-align: center;
-            font-size: 1.2rem;
-            color: #333;
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            color: #444;
+        }
+        /* 検索ボックス */
+        .search-container {
+            position: sticky;
+            top: 0;
+            background: #f9f9f9;
+            padding-bottom: 15px;
+            z-index: 100;
         }
         input {
             width: 100%;
-            padding: 12px;
+            padding: 14px;
             font-size: 16px;
             box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            outline: none;
+        }
+        input:focus {
+            border-color: #007bff;
+            box-shadow: 0 2px 8px rgba(0,123,255,0.2);
+        }
+        
+        /* リスト表示部分 */
+        .count {
+            text-align: right;
+            font-size: 0.8rem;
+            color: #888;
+            margin-bottom: 10px;
         }
         .result-item {
             background: white;
@@ -34,9 +57,13 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
         }
-        .result-item:last-child {
-            border-bottom: none;
+        .word-group {
+            display: flex;
+            flex-direction: column;
         }
         .en {
             font-weight: bold;
@@ -44,785 +71,487 @@
             color: #2c3e50;
         }
         .ja {
+            font-size: 0.95em;
             color: #555;
+            margin-top: 4px;
         }
-        .hidden {
-            display: none;
-        }
-        .count {
-            text-align: right;
-            font-size: 0.8rem;
-            color: #888;
-            margin-bottom: 10px;
+        /* ページ番号のスタイル */
+        .page-tag {
+            font-size: 0.75rem;
+            color: #999;
+            background-color: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            white-space: nowrap;
+            margin-left: 10px;
         }
     </style>
 </head>
 <body>
 
-    <h1>英単語検索</h1>
+    <div class="search-container">
+        <h1>英単語帳 (ページ検索対応)</h1>
+        <input type="text" id="searchBox" placeholder="単語、意味、p.1 などで検索...">
+        <div class="count" id="countDisplay"></div>
+    </div>
     
-    <input type="text" id="searchBox" placeholder="英単語 または 日本語を入力...">
-    
-    <div class="count" id="countDisplay"></div>
     <div id="results"></div>
 
 <script>
 // ==========================================
-// ▼▼▼ データ貼り付けエリア ▼▼▼
-// Excelの「英単語」と「意味」の2列をコピーして、
-// 下の ` (バッククォート) の間に貼り付けてください。
-// ※今はサンプルのデータが入っています。これを消して上書きしてください。
-
-const rawData = `
-peasant	小作農
-eloquent	雄弁な
-foul	不快な
-renown	有名な
-transparent	透き通った
-dim	薄暗い
-juvenile	青少年の
-prone to	～しやすい傾向にある
-arbitrary	勝手な
-legitimate	正当な
-ingenious	独創的な
-adverse	逆の、不利な
-tender	やさしい
-swift	素早い
-naive	世間知らずの
-intrinsic	本来の
-gloomy	憂うつ
-paralyze	麻痺させる
-earnest	まじめな
-compatible	適合する
-eminent	名高い
-terrific	すばらしい
-wicked	邪悪な
-potent	強力な
-authentic	本物の
-dizzy	めまい
-sheer	まったくの
-impotent	無力な
-sanity	正気
-staple	主要な、主食
-haughty	傲慢な
-damp	湿った
-indigenous	先住の
-innumerable	無数の
-integral	不可欠な
-aesthetic	美的な
-detach	切り離す
-facilitate	促進する
-intricate	複雑な
-demographic	人口統計の
-distinction	区別
-intrigue	好奇心をそそる
-distinct	はっきりした
-arrogant	傲慢な
-preoccupy	頭がいっぱい、夢中になる
-conspicuous	目立つ、顕著な
-manifest	明らかな
-tidy	きちんとした
-susceptible	影響を受けやすい
-mandate	権限、命令
-abruptly	不意に
-abolish	廃止する
-ambiguous	あいまいな
-ample	十分な
-refer to A as B	AをBと呼ぶ
-advent	出現
-analogy	類似点
-proficient	技量のある、熟達した
-coverage	報道、範囲
-cuisine	料理
-recollection	記憶、思い出
-menace	脅威
-latitude	緯度
-peril	危険
-longitude	経度
-limb	手足
-botany	植物学
-hatred	憎しみ
-heredity	遺伝
-autonomy	自主性
-contempt	軽蔑
-subsidy	補助金
-anatomy	構造、解剖学
-empathy	共感
-integrity	誠実、高潔
-posture	姿勢
-freight	貨物
-erupt	噴火する
-curse	呪い
-tumor	腫瘍
-funeral	葬式
-deficit	赤字、欠陥
-duration	期間
-disorder	障害、混乱
-deforestation	森林破壊
-the bulk of	大部分
-precaution	用心
-shortcomings	欠点
-realm	領域
-ambition	熱望、野心
-plow	すき (農具)
-orphan	孤児
-subordinate	部下
-warrior	戦士
-vacuum	空白、真空
-mutation	突然変異
-quest	探究
-sewage	下水
-paradigm	理論的枠組
-meditation	瞑想
-skyscraper	高層ビル
-riddle	謎
-scrape	こする
-in accord with	～と一致する
-rag	ぼろ切れ
-rug	じゅうたん
-sanitation	衛生
-mischief	いたずら
-bureaucrat	官僚
-array	配列、ずらりと並ぶ
-torture	拷問
-reign	統治
-agenda	課題
-doctrine	教義
-predecessor	前任者
-maternal	母性の
-successor	後任者
-bid	入札する
-entity	存在
-make a fuss about	～について大騒ぎする
-deficient	不足している
-narrative	話、物語
-heir to	相続人
-segment	部分
-equator	赤道
-catastrophe	大災害
-monarch	君主
-petroleum	石油
-constraint	制約
-evaporate	蒸発する
-probe	探査機、調査
-amendment	改正
-aisle	通路
-expertise	専門知識
-toll	通行料、犠牲者数
-tyranny	圧政
-scorn	軽蔑
-breeze	そよ風
-surge	急増、殺到する
-vein	静脈
-intuition	直感
-complement	補うもの
-artery	動脈
-complementary	補完的な
-queue	列
-stake	賭け金
-outlet	はけ口、直販店
-discourse	論説、談話
-dairy products	乳製品
-artifact	工芸品
-apprehension	不安、懸念
-ambassador	大使
-jury	陪審員
-melancholy	憂うつ
-novelty	目新しさ
-cluster	集団
-specimen	標本
-lump	こぶ、塊
-hygiene	衛生
-meadow	牧草地
-monopoly	独占
-pasture	牧草地
-aristocracy	貴族政治
-rhetoric	美辞麗句、修辞法
-feat	偉業
-entrepreneur	起業家
-appliance	器具
-census	国勢調査
-chill	寒気
-on the verge of	～の瀬戸際で
-roam	歩き回る
-frown on	眉をひそめる
-lure	呼び込む、誘惑する
-defy	逆らう
-rattle	がたがた鳴らす
-reconcile	調和させる、和解させる
-soothe	なだめる
-impair	低下させる、害する
-yearn for	切望する
-undermine	弱める
-pledge	誓う
-intrude on	侵入する
-foresee	予知する
-distort	歪曲する
-put out	消す
-preach	説教する
-pierce	突き刺す
-embody	具現する
-curb	抑制する
-stalk	忍び寄る
-withstand	耐える
-applaud	拍手する
-recite	暗唱する
-inflict	(苦痛などを)与える
-thrust	押し込む
-merge	合併する
-plea	嘆願
-undo	元に戻す
-humiliate	恥をかかせる
-poke one's nose into	～に干渉する
-discharge	放出する、解任する
-haunt	つきまとう
-adhere	固執する、くっつく
-condemn	非難する、宣告する
-compile	まとめる、編集する
-retrieve	検索する、取り戻す
-deteriorate	悪化する
-fetch	取ってくる
-murmur	つぶやく
-flatter	お世辞を言う
-inhibit	阻害する
-divert from	～からそらす
-asteroid	小惑星
-reap	手に入れる、刈り取る
-prose	散文
-affirm	断言する、肯定する
-textile	織物
-immerse	浸す、没頭させる
-timber	木材
-lumber	材木
-embark	乗り出す
-carriage	車両
-apparatus	装置
-durable	耐久性のある
-acute	急性の
-promising	前途有望な
-affluent	裕福な
-synonym	同義語
-anecdote	逸話
-attempt to	試みる
-solitary	孤独な
-collective	集団の
-diplomatic	外交の
-nasty	意地悪な、不快な
-helpless	無力な
-explicit	明白な
-implicit	暗黙の、遠回しの
-perpetual	永遠の
-notable	注目すべき
-vacancy	空室、空き
-exotic	外来の、異国風の
-rigid	厳格な
-outstanding	目立った、傑出した
-vulnerable	傷つきやすい
-per capita	一人当たりの
-inherently	本来
-alert to	知らせる、警報を出す
-simultaneous	同時に起きる
-utter	(言葉を)発する
-totally	完全に
-submit	服従する、提出する
-tolerate	我慢する
-thereby	そうすることで
-namely	すなわち
-hence	だから
-via	～経由で
-owing to	～のために
-mourn	嘆く、喪に服する
-summon	呼び出す
-shatter	粉々にする
-linger	残る、なかなか消えない
-lament	嘆く
-endow with	～を授ける
-rejoice	喜ぶ
-physiological	生理的な
-allocate	配分する
-contend	主張する、戦う
-clinical trial	臨床試験
-discern	識別する
-degrade	悪化させる
-erect	築く、直立させる
-spur	駆り立てる
-defraud	だまし取る
-total fertility rate	合計特殊出生率
-lunar	月の
-workaholic	仕事中毒の人
-fertile	肥沃な
-pessimistic	悲観的な
-abound	富む、たくさんある
-barren	不毛の
-prominent	有名な、傑出した
-splendid	すばらしい、壮麗な
-controversial	議論を呼ぶ
-prophecy	予言
-competent	有能な
-ridicule	あざ笑う
-indispensable	不可欠な
-imaginative	想像力豊かな
-straightforward	わかりやすい、率直な
-harsh	厳しい
-bold	大胆な
-liberal arts	教養科目
-uneasy	不安な
-prior	前の、優先する
-neat	きちんとした
-moderate	適度な
-superficial	表面上の
-elaborate	手の込んだ
-absurd	ばかげた
-radical	根本的な、過激な
-repent	悔い改める
-slight	わずかな
-malice	悪意
-ignorance	無知
-respective	それぞれの
-respectable	ちゃんとした、立派な
-virtually	事実上、ほとんど
-somewhat	多少
-magnificent	すばらしい
-mere	ほんの、単なる
-comprehensive	包括的な
-steep	険しい
-literary	文学の
-literate	読み書きできる
-gross	総計の
-subsequent	その後の
-diligent	勤勉な
-seemingly	一見
-sore	痛い
-thoroughly	徹底的に
-restless	落ち着かない
-vigor	精力
-dispense with	～なしで済ます
-dispense	分配する、出す
-immense	莫大な
-punctual	時間を厳守する
-incident	出来事
-disastrous	破滅的な
-Congress	米国議会
-emission	排出
-tip	先、チップ
-gulf	湾
-cattle	牛
-dense	密集した
-conceive	思いつく、妊娠する
-priest	司祭、神父
-pioneer	先駆者
-oval	卵型の
-trait	特徴
-generous	気前のよい
-frigid	極寒の
-groceries	食料雑貨
-reluctant to	～したがらない
-secretary	秘書、長官
-vague	漠然とした
-rural	田舎の
-complication	合併症、複雑化
-astronomy	天文学
-remote	遠く離れた、へんぴな
-youngster	若者
-urgent	緊急の
-rite	儀式
-striking	著しい、印象的な
-outcome	結果
-extraordinary	並外れた
-conservation	環境保護
-reptile	爬虫類
-vertebrate	脊椎動物
-mutual	相互の
-exceed	超える
-tremendous	とてつもない
-indifferent	無関心な
-profound	深い
-telegram	電報
-conservative	保守的な
-refuge	避難
-nursing home	老人ホーム
-rational	理性的な
-crucial	重大な
-nursery	保育所
-lively	生き生きとした
-verbal	言葉の
-grateful	感謝している
-overwhelm	圧倒する
-leap	跳ぶ
-companion	仲間
-modify	修正する
-derive	由来する
-district	地区
-procedure	手続き
-invasive species	外来種
-polish	磨く
-boundary	境界
-affection	愛情
-assert	主張する
-resolve	決心する、解決する
-in proportion to	～に比例して
-vocation	天職
-sorrow	悲しみ
-relieve	和らげる
-inevitably	必然的に
-prosperity	繁栄
-in the meantime	その間に
-budget	予算
-distinguished	著名な
-scheme	計画
-fatal	致命的な
-hesitant	ためらった
-insight	洞察
-rid A of B	AからBを取り除く
-motive	動機
-conference	会議
-insult	侮辱
-affair	情勢、浮気
-instinct	本能
-unit	単位
-voyage	航海
-virtue	美徳
-opt	選ぶ
-hemisphere	半球
-sympathy	同情
-anthropology	人類学
-compassion	思いやり
-destination	目的地
-reform	改革
-debt	借金
-wheat	小麦
-usage	語法
-profession	職業
-famine	飢饉
-folklore	民間伝承
-privilege	特権
-sow	種をまく
-extinction	絶滅
-clue	手がかり
-merchant	商人
-merchandise	商品
-circumstances	状況
-myth	神話
-dusk	夕暮れ
-faith	信頼、信仰
-awe	畏敬
-pile	積み重ね
-modest	謙虚な、控えめな
-intimate	親密な
-reference	言及、参照
-bitter	苦い、腹を立てた
-framework	枠組み
-peculiar	独特の
-load	荷物
-ethnic	民族的な
-wound	傷
-in vain	無駄に
-tune	曲
-alienate	疎外する
-faculty	学部、能力
-inclined to	～したい気がする
-clumsy	不器用な
-acquaintance	知人
-desperate	必死の
-thrilled	わくわくした
-consistent	一貫した
-burden	負担
-be fond of	～が好きだ
-constitution	憲法
-administrator	管理者、運営者
-inquiry	調査、質問
-altogether	全く、完全に
-strip	細長い一片、はぎ取る
-barely	かろうじて
-tease	じらす、からかう
-shade	陰、(意味の)微妙な違い
-deliberately	わざと、慎重に
-convention	慣習、大会
-tribe	部族
-conclude	結論づける
-frontier	国境、最先端
-dominate	支配する
-terminal	終点、末期の
-prohibit	禁止する
-substantial	相当な
-precise	正確な
-declare	宣言する
-distinctive	独特の
-sacrifice	犠牲にする
-contemporary	現代の
-retain	保持する
-annual	年一回の
-accustomed	慣れた
-mature	成熟した
-purchase	購入する
-regulate	規制する
-ripe	熟した
-inherit	受け継ぐ
-breed	繁殖させる
-odor	におい
-grave	重大な、墓
-puppy mill	子犬工場
-hostile	敵意を持った
-qualify	適任である、資格を得る
-overlook	見逃す、見渡す
-astonish	驚かせる
-whimper	めそめそ泣く
-deprive	奪う
-orient	～志向の、適応させる
-register	登録する
-correspond	一致する、文通する
-cease	やめる、終わる
-cast	投げる
-eliminate	除去する
-accompany	同伴する
-neglect	無視する、怠る
-impose	課す、押し付ける
-pursue	追求する
-commit	犯す、委ねる
-appoint	任命する
-attribute A to B	AをBのせいにする
-demonstrate	実証する、デモをする
-nod	うなずく
-bet	きっと～だと思う、賭ける
-imply	ほのめかす、意味する
-threaten	脅かす
-resort to	～に訴える
-sue	訴訟を起こす
-restrict	制限する
-descend	下る
-lean	寄りかかる、痩せた
-substitute	代わりに用いる
-withdraw	引っ込める、撤退する
-irritate	いらだたせる
-devote	捧げる
-urge	促す
-promptly	素早く
-detective	探偵
-grant	与える、認める
-interrupt	妨げる、中断する
-interfere	干渉する
-illustrate	説明する、挿絵を入れる
-endanger	危険にさらす
-stimulus	刺激
-diminish	減少する、衰える
-inspire	鼓舞する、やる気にさせる
-foster	養う、育む
-found	設立する
-stem	茎、生じる
-contract	契約、縮小する
-embrace	受け入れる、抱擁する
-breast cancer	乳がん
-vehicle	乗り物、伝達手段
-feast	宴会
-glimpse	ちらりと見ること
-realign	再調整する
-personnel	人員、職員
-triumph	勝利、大業績
-nuisance	迷惑
-province	州、地方
-esteem	尊敬
-primates	霊長類
-lottery	宝くじ
-flaw	欠陥、傷
-garment	衣服
-sentiment	感情
-antiquity	古代
-courtesy	礼儀
-fraction of	～のごく一部
-surveillance	監視
-certify	証明する
-prestige	名声
-erosion	浸食
-diligence	勤勉
-present	現在、出席している
-frustrate	いらいらさせる、挫折させる
-arithmetic	算術
-timidity	臆病
-bleb	水疱
-dim	薄暗い
-grace	優雅さ
-collide	衝突する
-estate	不動産、財産
-commodity	商品
-burglar	強盗
-grief	深い悲しみ
-intervention	介入
-rebel	反逆者
-dialogue	対話
-revenue	収入
-oral	口頭の
-germ	細菌
-portion	部分
-immortal	不死の
-retail	小売り
-crude	粗末な、加工されていない
-manipulate	操作する
-liable	～しがち、法的責任がある
-nourish	養う
-decent	まともな
-depict	描く
-nature and nurture	素質と教育（氏と育ち）
-accumulate	蓄積する
-dispose	配置する、処分する
-dread	恐れる
-cling to	～にしがみつく
-soaring	急上昇している
-go down the drain	無駄になる
-extract	取り出す、抽出する
-boast of	自慢する
-execute	実行する、処刑する
-flee	逃げる
-revise	修正する
-conceal	隠す
-drift	漂う
-weave	織る
-despise	軽蔑する
-flourish	繁栄する
-drain	排出する
-reinforce	強める
-exclaim	叫ぶ
-coordinate	調和させる
-exert	及ぼす
-strive	努力する
-dwell	住む
-spouse	配偶者
-dwell on	～についてくよくよ考える
-fatigue	疲労
-integrate	統合する
-assess	評価する
-despair	絶望する
-halt	止める
-dignity	尊厳
-mold	型作る
-behalf	利益、支持
-deed	行い
-infer	推論する
-intake	摂取量
-compliment	ほめ言葉
-conscience	良心
-disrupt	混乱させる
-incorporate into	～を取り入れる
-offspring	子、子孫
-expedition	遠征
-take advantage of	～を利用する
-dictate	書き取らせる、指図する
-flood	洪水
-site	用地、場所
-give in	降参する、提出する
-horrify	ぞっとさせる
-implement	実行する
-designate	指定する
-presume	推定する
-infant	幼児
-recruit	募集する、採用する
-take the place of	～に取って代わる
-sharp	急激な
-vary	変わる、さまざまである
-expenditure	支出
-excel	勝る、優れている
-considerable	かなりの
-plunge	突っ込む、急落する
-indulge in	～にふける
-prescribe	処方する、規定する
-penetrate	貫く、入り込む
-sufficient	十分な
-solidarity	団結
-prevail	広がる、普及する
-induce	誘う、引き起こす
-recipient	受け取り手、臓器のレシピエント
-persist	固執する、持続する
-largely	主に
-nevertheless	にもかかわらず
-apparently	見たところでは
-norm	規範、標準
-tempt	誘惑する
-publicity	宣伝、周知
-asset	資産、財産
-reception	もてなし、受付
-resign oneself to	～を諦めて受け入れる
-recession	不景気
-stiff	堅苦しい、硬い
-assembly	集会
-dedicate	捧げる
-obscure	わかりにくい、曖昧な
-fierce	激しい
-arrange	準備する、手配する
-display	展示する、示す
-amuse	楽しませる
-adopt	採用する、養子にする
-puzzle	当惑させる
-suspect	疑う
-perceive	知覚する
-wander	歩き回る
-remark	述べる
-contrary	反対の
-occasionally	時々
-somewhat	いくぶん
-preserve	保存する
-expression	表現
-praise	賞賛する
-`;
-// ▲▲▲ データ貼り付けエリア終わり ▲▲▲
+// ▼▼▼ データエリア (ページ番号付き) ▼▼▼
+// フォーマット: 英単語 [タブ] 意味 [タブ] ページ番号
 // ==========================================
 
-// データを処理可能な形式に変換
-const wordList = rawData.trim().split('\n').map(line => {
-    // タブ区切り、またはスペース区切りに対応
-    const parts = line.split(/\t/); 
-    // もしExcelでコピーした際に、英単語と意味だけじゃなくNo.などの列が入っても
-    // ここで調整できます。現在は[英単語, 意味]の2列を想定。
-    return { en: parts[0]?.trim(), ja: parts[1]?.trim() };
-}).filter(item => item.en && item.ja); // 空行を除去
-
-const searchBox = document.getElementById('searchBox');
-const resultsDiv = document.getElementById('results');
-const countDiv = document.getElementById('countDisplay');
-
-// 初期表示（全件表示したくない場合はここをコメントアウト）
-renderResults(wordList);
-
-// 検索処理
-searchBox.addEventListener('input', (e) => {
-    const query = e.target.value.toLowerCase().trim();
-    
-    if (!query) {
-        renderResults(wordList); // 空欄なら全件表示
-        return;
-    }
-
-    const filtered = wordList.filter(item => {
-        return item.en.toLowerCase().includes(query) || 
-               item.ja.includes(query);
-    });
-
-    renderResults(filtered);
-});
-
-function renderResults(list) {
-    countDiv.textContent = `全${wordList.length}語中 ${list.length}件ヒット`;
-    
-    if (list.length === 0) {
-        resultsDiv.innerHTML = '<div style="text-align:center; color:#888;">見つかりませんでした</div>';
-        return;
-    }
-
-    // 表示件数が多いと重くなるので、最初は100件だけ表示する制限をつける
-    const displayList = list.slice(0, 100);
-    
-    const html = displayList.map(item => `
-        <div class="result-item">
-            <div class="en">${item.en}</div>
-            <div class="ja">${item.ja}</div>
-        </div>
-    `).join('');
-
-    resultsDiv.innerHTML = html;
-    
-    if (list.length > 100) {
-        resultsDiv.innerHTML += '<div style="text-align:center; padding:10px; color:#888;">(100件以上あるため省略しています)</div>';
-    }
-}
-</script>
-
-</body>
-</html>
+const rawData = `
+peasant	小作農	1
+eloquent	雄弁な	1
+foul	不快な	1
+renown	有名な	1
+transparent	透き通った	1
+dim	薄暗い	1
+juvenile	青少年の	1
+prone to	～しやすい傾向にある	1
+arbitrary	勝手な	1
+legitimate	正当な	1
+ingenious	独創的な	1
+adverse	逆の、不利な	1
+tender	やさしい	1
+swift	素早い	1
+naive	世間知らずの	1
+intrinsic	本来の	1
+gloomy	憂うつ	1
+paralyze	麻痺させる	1
+earnest	まじめな	1
+compatible	適合する	1
+eminent	名高い	1
+terrific	すばらしい	1
+wicked	邪悪な	1
+potent	強力な	1
+authentic	本物の	1
+dizzy	めまい	1
+sheer	まったくの	1
+impotent	無力な	1
+sanity	正気	1
+staple	主要な、主食	1
+haughty	傲慢な	1
+damp	湿った	1
+indigenous	先住の	1
+innumerable	無数の	1
+integral	不可欠な	1
+aesthetic	美的な	1
+detach	切り離す	1
+facilitate	促進する	1
+intricate	複雑な	1
+demographic	人口統計の	1
+distinction	区別	1
+intrigue	好奇心をそそる	1
+distinct	はっきりした	1
+arrogant	傲慢な	1
+preoccupy	頭がいっぱい、夢中になる	1
+conspicuous	目立つ、顕著な	1
+manifest	明らかな	1
+tidy	きちんとした	1
+susceptible	影響を受けやすい	1
+mandate	権限、命令	1
+abruptly	不意に	1
+abolish	廃止する	1
+ambiguous	あいまいな	1
+ample	十分な	1
+refer to A as B	AをBと呼ぶ	1
+advent	出現	2
+analogy	類似点	2
+proficient	技量のある、熟達した	2
+coverage	報道、範囲	2
+cuisine	料理	2
+recollection	記憶、思い出	2
+menace	脅威	2
+latitude	緯度	2
+peril	危険	2
+longitude	経度	2
+limb	手足	2
+botany	植物学	2
+hatred	憎しみ	2
+heredity	遺伝	2
+autonomy	自主性	2
+contempt	軽蔑	2
+subsidy	補助金	2
+anatomy	構造、解剖学	2
+empathy	共感	2
+integrity	誠実、高潔	2
+posture	姿勢	2
+freight	貨物	2
+erupt	噴火する	2
+curse	呪い	2
+tumor	腫瘍	2
+funeral	葬式	2
+deficit	赤字、欠陥	2
+duration	期間	2
+disorder	障害、混乱	2
+deforestation	森林破壊	2
+the bulk of	大部分	2
+precaution	用心	2
+shortcomings	欠点	2
+realm	領域	2
+ambition	熱望、野心	2
+plow	すき (農具)	2
+orphan	孤児	2
+subordinate	部下	2
+warrior	戦士	2
+vacuum	空白、真空	2
+mutation	突然変異	2
+quest	探究	2
+sewage	下水	2
+paradigm	理論的枠組	2
+meditation	瞑想	2
+skyscraper	高層ビル	2
+riddle	謎	2
+scrape	こする	2
+in accord with	～と一致する	2
+rag	ぼろ切れ	2
+rug	じゅうたん	2
+sanitation	衛生	2
+mischief	いたずら	2
+bureaucrat	官僚	2
+array	配列、ずらりと並ぶ	2
+torture	拷問	2
+reign	統治	2
+agenda	課題	2
+doctrine	教義	3
+predecessor	前任者	3
+maternal	母性の	3
+successor	後任者	3
+bid	入札する	3
+entity	存在	3
+make a fuss about	～について大騒ぎする	3
+deficient	不足している	3
+narrative	話、物語	3
+heir to	相続人	3
+segment	部分	3
+equator	赤道	3
+catastrophe	大災害	3
+monarch	君主	3
+petroleum	石油	3
+constraint	制約	3
+evaporate	蒸発する	3
+probe	探査機、調査	3
+amendment	改正	3
+aisle	通路	3
+expertise	専門知識	3
+toll	通行料、犠牲者数	3
+tyranny	圧政	3
+scorn	軽蔑	3
+breeze	そよ風	3
+surge	急増、殺到する	3
+vein	静脈	3
+intuition	直感	3
+complement	補うもの	3
+artery	動脈	3
+complementary	補完的な	3
+queue	列	3
+stake	賭け金	3
+outlet	はけ口、直販店	3
+discourse	論説、談話	3
+dairy products	乳製品	3
+artifact	工芸品	3
+apprehension	不安、懸念	3
+ambassador	大使	3
+jury	陪審員	3
+melancholy	憂うつ	3
+novelty	目新しさ	3
+cluster	集団	3
+specimen	標本	3
+lump	こぶ、塊	3
+hygiene	衛生	3
+meadow	牧草地	3
+monopoly	独占	3
+pasture	牧草地	3
+aristocracy	貴族政治	3
+rhetoric	美辞麗句、修辞法	3
+feat	偉業	3
+entrepreneur	起業家	3
+appliance	器具	3
+census	国勢調査	3
+chill	寒気	3
+on the verge of	～の瀬戸際で	3
+roam	歩き回る	4
+frown on	眉をひそめる	4
+lure	呼び込む、誘惑する	4
+defy	逆らう	4
+rattle	がたがた鳴らす	4
+reconcile	調和させる、和解させる	4
+soothe	なだめる	4
+impair	低下させる、害する	4
+yearn for	切望する	4
+undermine	弱める	4
+pledge	誓う	4
+intrude on	侵入する	4
+foresee	予知する	4
+distort	歪曲する	4
+put out	消す	4
+preach	説教する	4
+pierce	突き刺す	4
+embody	具現する	4
+curb	抑制する	4
+stalk	忍び寄る	4
+withstand	耐える	4
+applaud	拍手する	4
+recite	暗唱する	4
+inflict	(苦痛などを)与える	4
+thrust	押し込む	4
+merge	合併する	4
+plea	嘆願	4
+undo	元に戻す	4
+humiliate	恥をかかせる	4
+poke one's nose into	～に干渉する	4
+discharge	放出する、解任する	4
+haunt	つきまとう	4
+adhere	固執する、くっつく	4
+condemn	非難する、宣告する	4
+compile	まとめる、編集する	4
+retrieve	検索する、取り戻す	4
+deteriorate	悪化する	4
+fetch	取ってくる	4
+murmur	つぶやく	4
+flatter	お世辞を言う	4
+inhibit	阻害する	4
+divert from	～からそらす	4
+asteroid	小惑星	4
+reap	手に入れる、刈り取る	4
+prose	散文	4
+affirm	断言する、肯定する	4
+textile	織物	4
+immerse	浸す、没頭させる	4
+timber	木材	4
+lumber	材木	4
+embark	乗り出す	4
+carriage	車両	4
+apparatus	装置	4
+durable	耐久性のある	5
+acute	急性の	5
+promising	前途有望な	5
+affluent	裕福な	5
+synonym	同義語	5
+anecdote	逸話	5
+attempt to	試みる	5
+solitary	孤独な	5
+collective	集団の	5
+diplomatic	外交の	5
+nasty	意地悪な、不快な	5
+helpless	無力な	5
+explicit	明白な	5
+implicit	暗黙の、遠回しの	5
+perpetual	永遠の	5
+notable	注目すべき	5
+vacancy	空室、空き	5
+exotic	外来の、異国風の	5
+rigid	厳格な	5
+outstanding	目立った、傑出した	5
+vulnerable	傷つきやすい	5
+per capita	一人当たりの	5
+inherently	本来	5
+alert to	知らせる、警報を出す	5
+simultaneous	同時に起きる	5
+utter	(言葉を)発する	5
+totally	完全に	5
+submit	服従する、提出する	5
+tolerate	我慢する	5
+thereby	そうすることで	5
+namely	すなわち	5
+hence	だから	5
+via	～経由で	5
+owing to	～のために	5
+mourn	嘆く、喪に服する	5
+summon	呼び出す	5
+shatter	粉々にする	5
+linger	残る、なかなか消えない	5
+lament	嘆く	5
+endow with	～を授ける	5
+rejoice	喜ぶ	5
+physiological	生理的な	5
+allocate	配分する	5
+contend	主張する、戦う	5
+clinical trial	臨床試験	5
+discern	識別する	5
+degrade	悪化させる	5
+erect	築く、直立させる	5
+spur	駆り立てる	5
+defraud	だまし取る	6
+total fertility rate	合計特殊出生率	6
+lunar	月の	6
+workaholic	仕事中毒の人	6
+fertile	肥沃な	6
+pessimistic	悲観的な	6
+abound	富む、たくさんある	6
+barren	不毛の	6
+prominent	有名な、傑出した	6
+splendid	すばらしい、壮麗な	6
+controversial	議論を呼ぶ	6
+prophecy	予言	6
+competent	有能な	6
+ridicule	あざ笑う	6
+indispensable	不可欠な	6
+imaginative	想像力豊かな	6
+straightforward	わかりやすい、率直な	6
+harsh	厳しい	6
+bold	大胆な	6
+liberal arts	教養科目	6
+uneasy	不安な	6
+prior	前の、優先する	6
+neat	きちんとした	6
+moderate	適度な	6
+superficial	表面上の	6
+elaborate	手の込んだ	6
+absurd	ばかげた	6
+radical	根本的な、過激な	6
+repent	悔い改める	6
+slight	わずかな	6
+malice	悪意	6
+ignorance	無知	6
+respective	それぞれの	6
+respectable	ちゃんとした、立派な	6
+virtually	事実上、ほとんど	6
+somewhat	多少	6
+magnificent	すばらしい	6
+mere	ほんの、単なる	6
+comprehensive	包括的な	6
+steep	険しい	6
+literary	文学の	6
+literate	読み書きできる	6
+gross	総計の	6
+subsequent	その後の	6
+diligent	勤勉な	6
+seemingly	一見	6
+sore	痛い	6
+thoroughly	徹底的に	6
+restless	落ち着かない	6
+vigor	精力	6
+dispense with	～なしで済ます	6
+dispense	分配する、出す	6
+immense	莫大な	6
+punctual	時間を厳守する	6
+incident	出来事	7
+disastrous	破滅的な	7
+Congress	米国議会	7
+emission	排出	7
+tip	先、チップ	7
+gulf	湾	7
+cattle	牛	7
+dense	密集した	7
+conceive	思いつく、妊娠する	7
+priest	司祭、神父	7
+pioneer	先駆者	7
+oval	卵型の	7
+trait	特徴	7
+generous	気前のよい	7
+frigid	極寒の	7
+groceries	食料雑貨	7
+reluctant to	～したがらない	7
+secretary	秘書、長官	7
+vague	漠然とした	7
+rural	田舎の	7
+complication	合併症、複雑化	7
+astronomy	天文学	7
+remote	遠く離れた、へんぴな	7
+youngster	若者	7
+urgent	緊急の	7
+rite	儀式	7
+striking	著しい、印象的な	7
+outcome	結果	7
+extraordinary	並外れた	7
+conservation	環境保護	7
+reptile	爬虫類	7
+vertebrate	脊椎動物	7
+mutual	相互の	7
+exceed	超える	7
+tremendous	とてつもない	7
+indifferent	無関心な	7
+profound	深い	7
+telegram	電報	7
+conservative	保守的な	7
+refuge	避難	7
+nursing home	老人ホーム	7
+rational	理性的な	7
+crucial	重大な	7
+nursery	保育所	7
+lively	生き生きとした	7
+verbal	言葉の	7
+grateful	感謝している	7
+overwhelm	圧倒する	7
+leap	跳ぶ	8
+companion	仲間	8
+modify	修正する	8
+derive	由来する	8
+district	地区	8
+procedure	手続き	8
+invasive species	外来種	8
+polish	磨く	8
+boundary	境界	8
+affection	愛情	8
+assert	主張する	8
+resolve	決心する、解決する	8
+in proportion to	～に比例して	8
+vocation	天職	8
+sorrow	悲しみ	8
+relieve	和らげる	8
+inevitably	必然的に	8
+prosperity	繁栄	8
+in the meantime	その間に	8
+budget	予算	8
+distinguished	著名な	8
+scheme	計画	8
+fatal	致命的な	8
+hesitant	ためらった	8
+insight	洞察	8
+rid A of B	AからBを取り除く	8
+motive	動機	8
+conference	会議	8
+insult	侮辱	8
+affair	情勢、浮気	8
+instinct	本能	8
+unit	単位	8
+voyage	航海	8
+virtue	美徳	8
+opt	選ぶ	8
+hemisphere	半球	8
+sympathy	同情	8
+anthropology	人類学	8
+compassion	思いやり	8
+destination	目的地	8
+reform	改革	8
+debt	借金	8
+wheat	小麦	8
+usage	語法	8
+profession	職業	8
+famine	飢饉	8
+folklore	民間伝承	8
+privilege	特権	8
+sow	種をまく	8
+extinction	絶滅	8
+clue	手がかり	8
+merchant	商人	8
+merchandise	商品	8
+circumstances	状況	8
+myth	神話	8
+dusk	夕暮れ	9
+faith	信頼、信仰	9
+awe	畏敬	9
+pile	積み重ね	9
+modest	謙虚な、控えめな	9
+intimate	親密な	9
+reference	言及、参照	9
+bitter	苦い、腹を立てた	9
+framework	枠組み	9
+peculiar	独特の	9
+load	荷物	9
+ethnic	民族的な	9
+wound	傷	9
+in vain	無駄に	9
+tune	曲	9
+alienate	疎外する	9
+faculty	学部、能力	9
+inclined to	～したい気がする	9
+clumsy	不器用な	9
+acquaintance	知人	9
+desperate	必死の	9
+thrilled	わくわくした
