@@ -98,6 +98,10 @@
     <div id="results"></div>
 
 <script>
+
+
+
+    
 // ==========================================
 // ▼▼▼ データエリア (ページ番号付き) ▼▼▼
 // フォーマット: 英単語 [タブ] 意味 [タブ] ページ番号
@@ -794,6 +798,82 @@ praise	賞賛する	14
 `;
 // ▲▲▲ データエリア終わり ▲▲▲
 
+// =========================
+// ▼ データを配列へ変換
+// =========================
+const wordList = rawData.trim().split("\n").map(line => {
+    const [en, ja, page] = line.split("\t");
+    return { en, ja, page };
+});
+
+// HTML要素取得
+const searchBox = document.getElementById("searchBox");
+const results = document.getElementById("results");
+const countDisplay = document.getElementById("countDisplay");
+
+// =========================
+// ▼ 検索処理
+// =========================
+function filterWords(keyword) {
+    keyword = keyword.trim().toLowerCase();
+
+    // ページ検索 "p◯" に対応（p1, p.1 など）
+    let pageQuery = null;
+    const pageMatch = keyword.match(/^p\.?(\d+)/);
+    if (pageMatch) {
+        pageQuery = pageMatch[1]; // 数字部分だけ抽出
+    }
+
+    return wordList.filter(item => {
+        const en = item.en.toLowerCase();
+        const ja = item.ja.toLowerCase();
+
+        // ページ検索
+        if (pageQuery) {
+            return item.page === pageQuery;
+        }
+
+        // 英語 or 日本語の部分一致
+        return en.includes(keyword) || ja.includes(keyword);
+    });
+}
+
+// =========================
+// ▼ 結果表示
+// =========================
+function displayResults(items) {
+    results.innerHTML = "";
+
+    items.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "result-item";
+
+        div.innerHTML = `
+            <div class="word-group">
+                <span class="en">${item.en}</span>
+                <span class="ja">${item.ja}</span>
+            </div>
+            <span class="page-tag">p.${item.page}</span>
+        `;
+
+        results.appendChild(div);
+    });
+
+    countDisplay.textContent = `${items.length} 件`;
+}
+
+// =========================
+// ▼ 入力イベント
+// =========================
+searchBox.addEventListener("input", () => {
+    const keyword = searchBox.value;
+    const result = filterWords(keyword);
+    displayResults(result);
+});
+
+// 初期表示（全件表示）
+displayResults(wordList);
+
 // データを処理
 const wordList = rawData.trim().split('\n').map(line => {
     const parts = line.split(/\t/);
@@ -862,3 +942,4 @@ function renderResults(list) {
 
 </body>
 </html>
+
