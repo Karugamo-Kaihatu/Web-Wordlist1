@@ -98,15 +98,9 @@
     <div id="results"></div>
 
 <script>
-
-
-
-    
 // ==========================================
 // ▼▼▼ データエリア (ページ番号付き) ▼▼▼
-// フォーマット: 英単語 [タブ] 意味 [タブ] ページ番号
 // ==========================================
-
 const rawData = `
 peasant	小作農	1
 eloquent	雄弁な	1
@@ -796,85 +790,14 @@ preserve	保存する	14
 expression	表現	14
 praise	賞賛する	14
 `;
+
 // ▲▲▲ データエリア終わり ▲▲▲
 
 // =========================
-// ▼ データを配列へ変換
+// ▼ JavaScriptロジック統合版
 // =========================
-const wordList = rawData.trim().split("\n").map(line => {
-    const [en, ja, page] = line.split("\t");
-    return { en, ja, page };
-});
 
-// HTML要素取得
-const searchBox = document.getElementById("searchBox");
-const results = document.getElementById("results");
-const countDisplay = document.getElementById("countDisplay");
-
-// =========================
-// ▼ 検索処理
-// =========================
-function filterWords(keyword) {
-    keyword = keyword.trim().toLowerCase();
-
-    // ページ検索 "p◯" に対応（p1, p.1 など）
-    let pageQuery = null;
-    const pageMatch = keyword.match(/^p\.?(\d+)/);
-    if (pageMatch) {
-        pageQuery = pageMatch[1]; // 数字部分だけ抽出
-    }
-
-    return wordList.filter(item => {
-        const en = item.en.toLowerCase();
-        const ja = item.ja.toLowerCase();
-
-        // ページ検索
-        if (pageQuery) {
-            return item.page === pageQuery;
-        }
-
-        // 英語 or 日本語の部分一致
-        return en.includes(keyword) || ja.includes(keyword);
-    });
-}
-
-// =========================
-// ▼ 結果表示
-// =========================
-function displayResults(items) {
-    results.innerHTML = "";
-
-    items.forEach(item => {
-        const div = document.createElement("div");
-        div.className = "result-item";
-
-        div.innerHTML = `
-            <div class="word-group">
-                <span class="en">${item.en}</span>
-                <span class="ja">${item.ja}</span>
-            </div>
-            <span class="page-tag">p.${item.page}</span>
-        `;
-
-        results.appendChild(div);
-    });
-
-    countDisplay.textContent = `${items.length} 件`;
-}
-
-// =========================
-// ▼ 入力イベント
-// =========================
-searchBox.addEventListener("input", () => {
-    const keyword = searchBox.value;
-    const result = filterWords(keyword);
-    displayResults(result);
-});
-
-// 初期表示（全件表示）
-displayResults(wordList);
-
-// データを処理
+// データを配列へ変換
 const wordList = rawData.trim().split('\n').map(line => {
     const parts = line.split(/\t/);
     return { 
@@ -884,17 +807,19 @@ const wordList = rawData.trim().split('\n').map(line => {
     };
 }).filter(item => item.en && item.ja);
 
+// HTML要素取得
 const searchBox = document.getElementById('searchBox');
 const resultsDiv = document.getElementById('results');
 const countDiv = document.getElementById('countDisplay');
 
-// 初期表示
+// 初期表示（最初の100件を表示）
 renderResults(wordList);
 
-// 検索処理
+// 検索イベント処理
 searchBox.addEventListener('input', (e) => {
     const query = e.target.value.toLowerCase().trim();
     
+    // 空文字の場合は全件表示（描画は100件制限）
     if (!query) {
         renderResults(wordList);
         return;
@@ -902,15 +827,17 @@ searchBox.addEventListener('input', (e) => {
 
     const filtered = wordList.filter(item => {
         // 英単語、日本語、または "p.ページ数" で検索
+        // "p.1" でも "1" だけでもヒットするように調整
         return item.en.toLowerCase().includes(query) || 
                item.ja.includes(query) ||
-               `p.${item.page}`.includes(query) || // "p.1" とかで検索可能に
-               item.page === query; // 数字だけでもヒットするように
+               `p.${item.page}`.includes(query) || 
+               item.page === query;
     });
 
     renderResults(filtered);
 });
 
+// 結果描画関数
 function renderResults(list) {
     countDiv.textContent = `全${wordList.length}語中 ${list.length}件ヒット`;
     
@@ -919,7 +846,7 @@ function renderResults(list) {
         return;
     }
 
-    // パフォーマンスのため最初の100件のみ表示
+    // パフォーマンスのため、表示は最初の100件のみに制限
     const displayList = list.slice(0, 100);
     
     const html = displayList.map(item => `
@@ -934,6 +861,7 @@ function renderResults(list) {
 
     resultsDiv.innerHTML = html;
     
+    // 100件以上ある場合の表示
     if (list.length > 100) {
         resultsDiv.innerHTML += '<div style="text-align:center; padding:15px; color:#888;">(他 ' + (list.length - 100) + ' 件)</div>';
     }
@@ -942,4 +870,3 @@ function renderResults(list) {
 
 </body>
 </html>
-
