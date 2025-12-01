@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Word List (Page Included)</title>
+    <title>My Word List (Full View)</title>
     <style>
         /* デザイン設定 */
         body {
@@ -27,6 +27,7 @@
             background: #f9f9f9;
             padding-bottom: 15px;
             z-index: 100;
+            border-bottom: 1px solid #ddd; /* スクロール時に境界が見やすいよう線を追加 */
         }
         input {
             width: 100%;
@@ -49,6 +50,7 @@
             font-size: 0.8rem;
             color: #888;
             margin-bottom: 10px;
+            margin-top: 5px;
         }
         .result-item {
             background: white;
@@ -90,7 +92,7 @@
 <body>
 
     <div class="search-container">
-        <h1>英単語帳 (ページ検索対応)</h1>
+        <h1>英単語帳 (全件表示モード)</h1>
         <input type="text" id="searchBox" placeholder="単語、意味、p.1 などで検索...">
         <div class="count" id="countDisplay"></div>
     </div>
@@ -812,14 +814,14 @@ const searchBox = document.getElementById('searchBox');
 const resultsDiv = document.getElementById('results');
 const countDiv = document.getElementById('countDisplay');
 
-// 初期表示（最初の100件を表示）
+// 初期表示（★ここを変更：全件そのまま渡す）
 renderResults(wordList);
 
 // 検索イベント処理
 searchBox.addEventListener('input', (e) => {
     const query = e.target.value.toLowerCase().trim();
     
-    // 空文字の場合は全件表示（描画は100件制限）
+    // 空文字の場合は全件表示
     if (!query) {
         renderResults(wordList);
         return;
@@ -827,7 +829,6 @@ searchBox.addEventListener('input', (e) => {
 
     const filtered = wordList.filter(item => {
         // 英単語、日本語、または "p.ページ数" で検索
-        // "p.1" でも "1" だけでもヒットするように調整
         return item.en.toLowerCase().includes(query) || 
                item.ja.includes(query) ||
                `p.${item.page}`.includes(query) || 
@@ -846,8 +847,8 @@ function renderResults(list) {
         return;
     }
 
-    // パフォーマンスのため、表示は最初の100件のみに制限
-    //カット！！const displayList = list.slice(0, 100);
+    // ★以前あった slice(0, 100) を削除し、リスト全体を表示
+    const displayList = list;
     
     const html = displayList.map(item => `
         <div class="result-item">
@@ -860,11 +861,6 @@ function renderResults(list) {
     `).join('');
 
     resultsDiv.innerHTML = html;
-    
-    // 100件以上ある場合の表示
-    if (list.length > 100) {
-        resultsDiv.innerHTML += '<div style="text-align:center; padding:15px; color:#888;">(他 ' + (list.length - 100) + ' 件)</div>';
-    }
 }
 </script>
 
